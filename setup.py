@@ -22,6 +22,7 @@ setup(
         "pandas>=1.3.0",
         "pyarrow>=4.0.0",  # para parquet
         "numpy>=1.21.0",
+        ""rich>=10.0.0",
     ],
     extras_require={
         "dev": [
