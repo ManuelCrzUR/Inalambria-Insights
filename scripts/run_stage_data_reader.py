@@ -11,11 +11,13 @@ Uso:
 
 import sys
 import time
+from pathlib import Path
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-sys.path.insert(0, '/home/manuel-cruz/Desktop/Twnel/prod_pipeline')
+# Asegura que el paquete 'pipeline' sea encontrado al ejecutar desde cualquier directorio
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from pipeline.core.data_reader import iter_parquet_chunks
 from pipeline.core.stats_collector import StatsAccumulator
