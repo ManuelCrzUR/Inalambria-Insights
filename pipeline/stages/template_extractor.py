@@ -179,6 +179,28 @@ class TemplateExtractor:
             metadata=msg.metadata,
         )
 
+    def extract_text(self, text: str) -> Template:
+        """
+        Extrae placeholders directamente desde un string limpio.
+
+        Conveniente cuando no se tiene un NormalizedMessage completo,
+        por ejemplo al trabajar con columnas de un DataFrame.
+
+        Args:
+            text: Texto ya normalizado (lowercase, sin ruido).
+
+        Returns:
+            Template con el texto transformado. Los campos de metadata
+            (phone_number, client_id, etc.) quedan vacíos/None.
+        """
+        msg = NormalizedMessage(
+            original_message=text,
+            cleaned_message=text,
+            phone_number="",
+            status_id=3,
+        )
+        return self.extract(msg)
+
     def extract_batch(self, msgs: List[NormalizedMessage]) -> List[Template]:
         """
         Extrae placeholders de una lista de mensajes.

@@ -21,10 +21,11 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from pipeline.core.data_reader import iter_parquet_chunks
 from pipeline.core.text_normalizer import TextNormalizer
 from pipeline.monitor.progress_ui_live import PipelineLiveUI
+from pipeline.stages import TemplateExtractor
 
 
 def main():
-    parquet_path = "/home/manuel-cruz/Desktop/Twnel/Diciembre2025-20260330T205027Z-1-003/Diciembre2025/day=15/SmsData_2025_12_15.parquet"
+    parquet_path = "/home/manuel-cruz/Desktop/Twnel/data/raw/diciembre-2025/Diciembre2025/day=15/SmsData_2025_12_15.parquet"
 
     ui = PipelineLiveUI()
 
@@ -120,27 +121,32 @@ def main():
         print("[Fase 3/3] Extrayendo plantillas...")
         time.sleep(1)
 
+        extractor = TemplateExtractor()
         templates_extracted = 0
+        unique_template_ids: set = set()
 
         for chunk in normalized_data:
             if "NormalizedMessage" in chunk.columns:
-                templates_extracted += len(chunk)
+                for msg_text in chunk["NormalizedMessage"]:
+                    template = extractor.extract_text(msg_text)
+                    unique_template_ids.add(template.template_id)
+                    templates_extracted += 1
 
-                if templates_extracted % 50000 == 0 or templates_extracted == total_messages:
-                    ui.update_phase(
-                        "🎯 Extracción de Plantillas",
-                        processed=templates_extracted,
-                        total=total_messages,
-                        **{
-                            "Plantillas encontradas": templates_extracted,
-                        }
-                    )
+                    if templates_extracted % 50000 == 0 or templates_extracted == total_messages:
+                        ui.update_phase(
+                            "🎯 Extracción de Plantillas",
+                            processed=templates_extracted,
+                            total=total_messages,
+                            **{
+                                "Plantillas únicas": len(unique_template_ids),
+                            }
+                        )
 
-                    # Actualizar pantalla
-                    layout["header"].update(ui._render_header())
-                    layout["phase"].update(ui._render_current_phase())
-                    layout["completed"].update(ui._render_completed_phases())
-                    layout["info"].update(ui._render_info())
+                        # Actualizar pantalla
+                        layout["header"].update(ui._render_header())
+                        layout["phase"].update(ui._render_current_phase())
+                        layout["completed"].update(ui._render_completed_phases())
+                        layout["info"].update(ui._render_info())
 
         ui.complete_phase()
 
@@ -162,7 +168,7 @@ def main():
     print(f"\n📊 Estadísticas finales:")
     print(f"   📖 Lectura: {chunk_num} row_groups ({total_messages:,} mensajes)")
     print(f"   🔧 Normalización: {processed:,} mensajes")
-    print(f"   🎯 Plantillas: {templates_extracted:,} extraídas")
+    print(f"   🎯 Plantillas: {templates_extracted:,} procesadas / {len(unique_template_ids):,} únicas")
     print(f"   ⏱️  Tiempo total: {elapsed:.2f}s\n")
 
 
