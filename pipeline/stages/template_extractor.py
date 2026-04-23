@@ -68,6 +68,14 @@ PLACEHOLDER_RULES: List[RegexRuleConfig] = [
         priority=30,
     ),
     RegexRuleConfig(
+        name="percentage",
+        # Porcentajes: 3.5%, 50,5%, 100%
+        # Formatos: número opcional con punto o coma decimal seguido de %
+        pattern=r"\d+(?:[,\.]\d+)?%",
+        placeholder="[PCT]",
+        priority=35,
+    ),
+    RegexRuleConfig(
         name="time",
         # 14:30, 2:30 p.m., 9:00am, 23:59:59
         pattern=r"\b\d{1,2}:\d{2}(?::\d{2})?(?:\s*[ap]\.?m\.?)?\b",

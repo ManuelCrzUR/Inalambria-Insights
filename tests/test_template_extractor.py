@@ -96,6 +96,56 @@ class TestReglaDate:
         assert "[DATE]" in t.template_text
         assert "date" in t.applied_rules
 
+class TestReglaPercentage:
+    def test_porcentaje_simple(self, extractor):
+        t = extractor.extract(make_msg("tasa de interés: 3% mensual"))
+        assert "[PCT]" in t.template_text
+        assert "3%" not in t.template_text
+        assert "percentage" in t.applied_rules
+
+    def test_porcentaje_con_punto_decimal(self, extractor):
+        t = extractor.extract(make_msg("descuento aplicado: 15.5% en tu compra"))
+        assert "[PCT]" in t.template_text
+        assert "15.5%" not in t.template_text
+        assert "percentage" in t.applied_rules
+
+    def test_porcentaje_con_coma_decimal(self, extractor):
+        # Formato colombiano con coma
+        t = extractor.extract(make_msg("rendimiento: 8,25% anual"))
+        assert "[PCT]" in t.template_text
+        assert "8,25%" not in t.template_text
+        assert "percentage" in t.applied_rules
+
+    def test_porcentaje_sin_decimales(self, extractor):
+        t = extractor.extract(make_msg("iva incluido: 19%"))
+        assert "[PCT]" in t.template_text
+        assert "19%" not in t.template_text
+        assert "percentage" in t.applied_rules
+
+    def test_multiplos_porcentajes(self, extractor):
+        t = extractor.extract(make_msg("tasa base 5% + comisión 0.5% = 5.5% total"))
+        assert t.template_text.count("[PCT]") == 3
+        assert "percentage" in t.applied_rules
+
+    def test_porcentaje_con_contexto(self, extractor):
+        t = extractor.extract(make_msg("su rendimiento fue del 12.75% superior al benchmark"))
+        assert "[PCT]" in t.template_text
+        assert "percentage" in t.applied_rules
+
+    def test_porcentaje_no_aplica_sin_porcentaje(self, extractor):
+        t = extractor.extract(make_msg("tu saldo disponible es normal"))
+        assert "[PCT]" not in t.template_text
+        assert "percentage" not in t.applied_rules
+
+    def test_porcentaje_cero(self, extractor):
+        t = extractor.extract(make_msg("aumento de 0% sobre el monto base"))
+        assert "[PCT]" in t.template_text
+        assert "percentage" in t.applied_rules
+
+    def test_porcentaje_cien(self, extractor):
+        t = extractor.extract(make_msg("descuento de 100% válido solo hoy"))
+        assert "[PCT]" in t.template_text
+        assert "percentage" in t.applied_rules
 
 class TestReglaTime:
     def test_hora_simple(self, extractor):
@@ -183,6 +233,16 @@ class TestCasosCombinados:
         assert "amount" in t.applied_rules
         assert "date" in t.applied_rules
         assert "time" in t.applied_rules
+        
+    def test_porcentaje_con_monto_y_fecha(self, extractor):
+        texto = "su crédito de $500.000 con tasa del 3.5% vence el 20/12/2025"
+        t = extractor.extract(make_msg(texto))
+        assert "[AMT]" in t.template_text
+        assert "[PCT]" in t.template_text
+        assert "[DATE]" in t.template_text
+        assert "amount" in t.applied_rules
+        assert "percentage" in t.applied_rules
+        assert "date" in t.applied_rules
 
     def test_url_y_telefono(self, extractor):
         texto = "descarga la app en https://banco.com/app o llama al 3001234567."
