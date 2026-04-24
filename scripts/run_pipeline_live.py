@@ -20,8 +20,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from pipeline.core.data_reader import iter_parquet_chunks
 from pipeline.core.text_normalizer import TextNormalizer
+from pipeline.core.models import NormalizedMessage
 from pipeline.monitor.progress_ui_live import PipelineLiveUI
-from pipeline.stages import TemplateExtractor
+from pipeline.stages import TemplateExtractor, MessageSplitter
 
 
 def main():
@@ -122,23 +123,27 @@ def main():
         time.sleep(1)
 
         extractor = TemplateExtractor()
+        splitter = MessageSplitter()
         templates_extracted = 0
-        unique_template_ids: set = set()
+        all_templates = []
 
         for chunk in normalized_data:
             if "NormalizedMessage" in chunk.columns:
                 for msg_text in chunk["NormalizedMessage"]:
                     template = extractor.extract_text(msg_text)
-                    unique_template_ids.add(template.template_id)
+                    all_templates.append(template)
                     templates_extracted += 1
 
                     if templates_extracted % 50000 == 0 or templates_extracted == total_messages:
+                        # Vista previa: contar templates únicos en lo procesado hasta ahora
+                        unique_so_far = len({t.template_id for t in all_templates})
+
                         ui.update_phase(
                             "🎯 Extracción de Plantillas",
                             processed=templates_extracted,
                             total=total_messages,
                             **{
-                                "Plantillas únicas": len(unique_template_ids),
+                                "Plantillas únicas": unique_so_far,
                             }
                         )
 
@@ -149,6 +154,11 @@ def main():
                         layout["info"].update(ui._render_info())
 
         ui.complete_phase()
+
+        # Separar en dos grupos (con y sin placeholders)
+        split_result = splitter.split(all_templates)
+        unique_templates = len({t.template_id for t in split_result.with_placeholders})
+        unique_pure_messages = len({t.cleaned_message for t in split_result.pure_messages})
 
         # Actualizar última vez
         layout["header"].update(ui._render_header())
@@ -162,13 +172,19 @@ def main():
     # ========================================================================
 
     print("\n" * 2)
-    ui.show_summary()
+    ui.show_summary(
+        unique_templates=unique_templates,
+        unique_pure_messages=unique_pure_messages,
+        total_messages=templates_extracted,
+    )
 
     elapsed = (time.time() - ui.start_time.timestamp())
-    print(f"\n📊 Estadísticas finales:")
+    print(f"\n📝 Detalles técnicos:")
     print(f"   📖 Lectura: {chunk_num} row_groups ({total_messages:,} mensajes)")
     print(f"   🔧 Normalización: {processed:,} mensajes")
-    print(f"   🎯 Plantillas: {templates_extracted:,} procesadas / {len(unique_template_ids):,} únicas")
+    print(f"   🎯 Plantillas: {templates_extracted:,} procesadas")
+    print(f"       └─ Con placeholders (únicas): {unique_templates:,}")
+    print(f"       └─ Texto puro (únicos): {unique_pure_messages:,}")
     print(f"   ⏱️  Tiempo total: {elapsed:.2f}s\n")
 
 

@@ -185,8 +185,20 @@ class PipelineLiveUI:
                 layout["completed"].update(self._render_completed_phases())
                 layout["info"].update(self._render_info())
 
-    def show_summary(self) -> None:
-        """Muestra resumen final"""
+    def show_summary(
+        self,
+        unique_templates: int = 0,
+        unique_pure_messages: int = 0,
+        total_messages: int = 0,
+    ) -> None:
+        """
+        Muestra resumen final con estadísticas opcionales del análisis.
+
+        Args:
+            unique_templates: Plantillas únicas detectadas (con placeholders).
+            unique_pure_messages: Mensajes únicos sin placeholders.
+            total_messages: Total de mensajes procesados.
+        """
         self.console.clear()
 
         elapsed = (datetime.now() - self.start_time).total_seconds()
@@ -197,12 +209,21 @@ class PipelineLiveUI:
 [bold]Resumen:[/bold]
   Tiempo total: {elapsed:.2f}s
   Fases: {len(self.completed_phases)}
-
-[bold]Fases completadas:[/bold]
 """
 
+        # Agregar estadísticas si se proporcionan
+        if total_messages > 0:
+            summary_text += f"""
+[bold cyan]📊 Resultados del Análisis:[/bold cyan]
+  🎯 Plantillas únicas (con placeholders): {unique_templates:,}
+  📝 Mensajes únicos (texto puro):         {unique_pure_messages:,}
+  📬 Total procesados:                     {total_messages:,}
+"""
+
+        summary_text += "\n[bold]Fases completadas:[/bold]\n"
+
         for phase in self.completed_phases:
-            summary_text += f"\n  ✅ {phase}"
+            summary_text += f"  ✅ {phase}\n"
 
         self.console.print(Panel(
             summary_text,
