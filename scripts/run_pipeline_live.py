@@ -23,6 +23,7 @@ from pipeline.core.text_normalizer import TextNormalizer
 from pipeline.core.models import NormalizedMessage
 from pipeline.monitor.progress_ui_live import PipelineLiveUI
 from pipeline.stages import TemplateExtractor, MessageSplitter
+from pipeline.storage import PipelineStorage
 
 
 def main():
@@ -118,32 +119,41 @@ def main():
         ui.complete_phase()
         time.sleep(1)
 
-        # FASE 3: EXTRAER
+        # FASE 3: EXTRAER (con STREAMING storage — sin acumular)
         print("[Fase 3/3] Extrayendo plantillas...")
         time.sleep(1)
 
         extractor = TemplateExtractor()
-        splitter = MessageSplitter()
+        storage = PipelineStorage()
+
         templates_extracted = 0
-        all_templates = []
+        unique_template_ids = set()  # Para contar únicos sin acumular templates
+        unique_pure_texts = set()
 
         for chunk in normalized_data:
             if "NormalizedMessage" in chunk.columns:
                 for msg_text in chunk["NormalizedMessage"]:
                     template = extractor.extract_text(msg_text)
-                    all_templates.append(template)
+
+                    # STREAMING: guardar incremental (sin acumular en memoria)
+                    storage.append_template(template)
+                    storage.append_unique_template(template)
+
+                    # Solo contar (no guardar) para stats
+                    if template.applied_rules:
+                        unique_template_ids.add(template.template_id)
+                    else:
+                        unique_pure_texts.add(template.cleaned_message)
+
                     templates_extracted += 1
 
                     if templates_extracted % 50000 == 0 or templates_extracted == total_messages:
-                        # Vista previa: contar templates únicos en lo procesado hasta ahora
-                        unique_so_far = len({t.template_id for t in all_templates})
-
                         ui.update_phase(
                             "🎯 Extracción de Plantillas",
                             processed=templates_extracted,
                             total=total_messages,
                             **{
-                                "Plantillas únicas": unique_so_far,
+                                "Plantillas únicas": len(unique_template_ids),
                             }
                         )
 
@@ -155,10 +165,11 @@ def main():
 
         ui.complete_phase()
 
-        # Separar en dos grupos (con y sin placeholders)
-        split_result = splitter.split(all_templates)
-        unique_templates = len({t.template_id for t in split_result.with_placeholders})
-        unique_pure_messages = len({t.cleaned_message for t in split_result.pure_messages})
+        # Cerrar archivos JSONL después de streaming
+        storage.close_jsonl_files()
+
+        unique_templates = len(unique_template_ids)
+        unique_pure_messages = len(unique_pure_texts)
 
         # Actualizar última vez
         layout["header"].update(ui._render_header())
@@ -166,6 +177,21 @@ def main():
         layout["completed"].update(ui._render_completed_phases())
         layout["info"].update(ui._render_info())
         time.sleep(2)
+
+    # ========================================================================
+    # METADATA FINAL
+    # ========================================================================
+
+    storage.save_metadata({
+        "pipeline_date": datetime.now().isoformat(),
+        "total_messages": templates_extracted,
+        "unique_templates": unique_templates,
+        "unique_pure_messages": unique_pure_messages,
+        "processing_time_seconds": time.time() - ui.start_time.timestamp(),
+        "parquet_file": str(parquet_path),
+        "data_source": "diciembre-2025",
+        "mode": "streaming",
+    })
 
     # ========================================================================
     # RESUMEN FINAL (fuera del Live)
@@ -185,7 +211,12 @@ def main():
     print(f"   🎯 Plantillas: {templates_extracted:,} procesadas")
     print(f"       └─ Con placeholders (únicas): {unique_templates:,}")
     print(f"       └─ Texto puro (únicos): {unique_pure_messages:,}")
-    print(f"   ⏱️  Tiempo total: {elapsed:.2f}s\n")
+    print(f"   ⏱️  Tiempo total: {elapsed:.2f}s")
+    print(f"\n💾 Datos guardados (streaming) en: {storage.output_dir}/")
+    print(f"   ├─ templates_with_placeholders.jsonl    (streaming)")
+    print(f"   ├─ templates_pure_messages.jsonl        (streaming)")
+    print(f"   ├─ unique_templates.jsonl               (deduplicado)")
+    print(f"   └─ metadata.json                        (stats)\n")
 
 
 if __name__ == "__main__":
