@@ -6,27 +6,44 @@ Muestra una sola pantalla que se actualiza en tiempo real mientras:
 1. Lee el parquet
 2. Normaliza el texto
 3. Extrae plantillas
+4. (Opcional) Clasifica plantillas con LLM panel + árbitro
+
+Uso:
+    python scripts/run_pipeline_live.py                    # Sin clasificación
+    python scripts/run_pipeline_live.py --classify         # Con clasificación LLM
+    python scripts/run_pipeline_live.py --classify --concurrency 5
 """
 
 import sys
 import time
+import asyncio
+import argparse
+import json
 from pathlib import Path
 from rich.live import Live
 from rich.layout import Layout
 from datetime import datetime
+from collections import defaultdict
 
 # Asegura que el paquete 'pipeline' sea encontrado al ejecutar desde cualquier directorio
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from config import settings
 from pipeline.core.data_reader import iter_parquet_chunks
 from pipeline.core.text_normalizer import TextNormalizer
 from pipeline.core.models import NormalizedMessage
 from pipeline.monitor.progress_ui_live import PipelineLiveUI
 from pipeline.stages import TemplateExtractor, MessageSplitter
 from pipeline.storage import PipelineStorage
+from pipeline.stages.classifier import (
+    HeterogeneousPanel,
+    Arbiter,
+    ClassifierStage,
+    ClassificationStore,
+)
 
 
-def main():
+def main(classify: bool = False, concurrency: int = 10, threshold: float = 0.7):
     parquet_path = "/home/manuel-cruz/Desktop/Twnel/data/raw/diciembre-2025/Diciembre2025/day=15/SmsData_2025_12_15.parquet"
 
     ui = PipelineLiveUI()
@@ -165,6 +182,109 @@ def main():
 
         ui.complete_phase()
 
+        # FASE 4 (OPCIONAL): CLASIFICAR con LLM
+        if classify:
+            print("[Fase 4/4] Clasificando plantillas con LLM...")
+            time.sleep(1)
+
+            # Cargar taxonomía
+            try:
+                with open(settings.TAXONOMY_PATH, "r", encoding="utf-8") as f:
+                    taxonomy = json.load(f)
+            except Exception as e:
+                print(f"[ERROR] No se pudo cargar taxonomía: {e}")
+                classify = False
+
+            if classify and settings.OPENAI_API_KEY:
+                # Inicializar componentes de clasificación
+                panel = HeterogeneousPanel(
+                    api_key=settings.OPENAI_API_KEY,
+                    taxonomy_data=taxonomy
+                )
+                arbiter = Arbiter(
+                    api_key=settings.OPENAI_API_KEY,
+                    taxonomy_data=taxonomy
+                )
+
+                # Store en el mismo directorio que las templates
+                output_dir = Path(storage.output_dir)
+                classifications_path = output_dir / settings.CLASSIFICATIONS_OUTPUT_FILENAME
+                store = ClassificationStore(classifications_path)
+                store.ensure_parent_exists()
+
+                classifier_stage = ClassifierStage(
+                    panel=panel,
+                    arbiter=arbiter,
+                    store=store,
+                    agreement_threshold=threshold,
+                    concurrency=concurrency,
+                )
+
+                # Cargar templates únicas del archivo ya generado
+                unique_templates_path = output_dir / "unique_templates.jsonl"
+                try:
+                    with open(unique_templates_path, "r", encoding="utf-8") as f:
+                        unique_templates_list = [
+                            json.loads(line.strip())
+                            for line in f
+                            if line.strip()
+                        ]
+                except Exception as e:
+                    print(f"[ERROR] No se pudo cargar unique_templates: {e}")
+                    unique_templates_list = []
+
+                # Crear async iterator de templates
+                async def template_iterator():
+                    for template in unique_templates_list:
+                        yield template
+
+                # Clasificar (async)
+                classified_count = 0
+                classification_stats = {
+                    "panel_agreement": 0,
+                    "arbiter": 0,
+                    "human_review": 0,
+                    "errors": 0,
+                }
+
+                async def run_classification():
+                    nonlocal classified_count
+                    async for result in classifier_stage.classify_stream(
+                        template_iterator()
+                    ):
+                        classified_count += 1
+                        classification_stats[result.level_used] = (
+                            classification_stats.get(result.level_used, 0) + 1
+                        )
+
+                        if classified_count % 10 == 0 or classified_count == len(
+                            unique_templates_list
+                        ):
+                            ui.update_phase(
+                                "🤖 Clasificación LLM",
+                                processed=classified_count,
+                                total=len(unique_templates_list),
+                                **{
+                                    "Panel acuerdo": f"{classification_stats['panel_agreement']}",
+                                    "Árbitro": f"{classification_stats['arbiter']}",
+                                }
+                            )
+
+                            # Actualizar pantalla
+                            layout["header"].update(ui._render_header())
+                            layout["phase"].update(ui._render_current_phase())
+                            layout["completed"].update(ui._render_completed_phases())
+                            layout["info"].update(ui._render_info())
+
+                # Ejecutar loop async
+                asyncio.run(run_classification())
+                ui.complete_phase()
+            else:
+                if not settings.OPENAI_API_KEY:
+                    print(
+                        "[WARNING] OPENAI_API_KEY no configurada, saltando clasificación"
+                    )
+
         # Cerrar archivos JSONL después de streaming
         storage.close_jsonl_files()
 
@@ -211,13 +331,41 @@ def main():
     print(f"   🎯 Plantillas: {templates_extracted:,} procesadas")
     print(f"       └─ Con placeholders (únicas): {unique_templates:,}")
     print(f"       └─ Texto puro (únicos): {unique_pure_messages:,}")
+    if classify:
+        print(f"   🤖 Clasificadas: {classified_count:,}")
     print(f"   ⏱️  Tiempo total: {elapsed:.2f}s")
     print(f"\n💾 Datos guardados (streaming) en: {storage.output_dir}/")
     print(f"   ├─ templates_with_placeholders.jsonl    (streaming)")
     print(f"   ├─ templates_pure_messages.jsonl        (streaming)")
     print(f"   ├─ unique_templates.jsonl               (deduplicado)")
+    if classify:
+        print(f"   ├─ classifications.jsonl                (LLM)")
     print(f"   └─ metadata.json                        (stats)\n")
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Ejecutar pipeline SMS con interfaz en vivo")
+    parser.add_argument(
+        "--classify",
+        action="store_true",
+        help="Activar etapa de clasificación LLM (panel + árbitro)"
+    )
+    parser.add_argument(
+        "--concurrency",
+        type=int,
+        default=10,
+        help="Llamadas LLM paralelas (default: 10)"
+    )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=0.7,
+        help="Confidence mínima para acuerdo panel (default: 0.7)"
+    )
+
+    args = parser.parse_args()
+    main(
+        classify=args.classify,
+        concurrency=args.concurrency,
+        threshold=args.threshold
+    )
