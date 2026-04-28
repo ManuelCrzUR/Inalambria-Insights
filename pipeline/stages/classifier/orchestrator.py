@@ -33,7 +33,7 @@ class ClassifierStage:
         panel: HeterogeneousPanel,
         arbiter: Arbiter,
         store: ClassificationStore,
-        agreement_threshold: float = 0.7,
+        agreement_threshold: float = 0.5,
         concurrency: int = 10,
     ):
         """
@@ -90,7 +90,7 @@ class ClassifierStage:
                 # Paso 2: Evalúa acuerdo
                 labels_agree = vote1.label == vote2.label
                 min_conf = min(vote1.confidence, vote2.confidence)
-                agreement = labels_agree and min_conf >= self.agreement_threshold
+                agreement = labels_agree and min_conf >= self.agreement_threshold  # threshold reducido a 0.5
 
                 if agreement:
                     # Panel de acuerdo → etiqueta final = voto del panel
@@ -121,7 +121,7 @@ class ClassifierStage:
                         frequency=frequency,
                     )
 
-                    is_abstain = arbiter_response.get("label") == "ABSTAIN"
+                    is_abstain = arbiter_response.label == "ABSTAIN"
                     level = "human_review" if is_abstain else "arbiter"
 
                     result = ClassificationResult(
@@ -129,27 +129,27 @@ class ClassifierStage:
                         template_text=template_text,
                         applied_rules=applied_rules,
                         frequency=frequency,
-                        label=arbiter_response.get("label", "ABSTAIN"),
+                        label=arbiter_response.label,
                         category=(
-                            arbiter_response.get("label", "ABSTAIN").split("::")[0]
-                            if "::" in arbiter_response.get("label", "")
-                            else arbiter_response.get("label", "ABSTAIN")
+                            arbiter_response.label.split("::")[0]
+                            if "::" in arbiter_response.label
+                            else arbiter_response.label
                         ),
                         subcategory=(
-                            arbiter_response.get("label", "").split("::")[1]
-                            if "::" in arbiter_response.get("label", "")
+                            arbiter_response.label.split("::")[1]
+                            if "::" in arbiter_response.label
                             else ""
                         ),
-                        confidence=arbiter_response.get("confidence", 0.0),
+                        confidence=arbiter_response.confidence,
                         level_used=level,
                         agreement=False,
                         panel_judge_1=vote1.label,
                         panel_judge_1_conf=vote1.confidence,
                         panel_judge_2=vote2.label,
                         panel_judge_2_conf=vote2.confidence,
-                        arbiter_label=arbiter_response.get("label"),
+                        arbiter_label=arbiter_response.label,
                         arbiter_abstained=is_abstain,
-                        arbiter_reasoning=arbiter_response.get("reasoning"),
+                        arbiter_reasoning=arbiter_response.reasoning,
                         needs_human_review=is_abstain,
                     )
 

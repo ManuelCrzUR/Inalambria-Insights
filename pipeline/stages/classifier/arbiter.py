@@ -1,5 +1,6 @@
 import asyncio
 from typing import List, Optional
+from pydantic import BaseModel, Field
 from openai import AsyncOpenAI
 from pipeline.stages.classifier.base import PanelVote
 from config import settings
@@ -36,6 +37,12 @@ Juez 2 (Nano): {label2} (Confianza: {conf2})
 
 Veredicto final:
 """
+
+class ArbiterResponse(BaseModel):
+    """Esquema de respuesta para el árbitro"""
+    label: str = Field(description="Etiqueta final o ABSTAIN")
+    confidence: float = Field(description="Confianza del veredicto")
+    reasoning: str = Field(description="Justificación de la decisión")
 
 class Arbiter:
     """
@@ -81,10 +88,10 @@ class Arbiter:
         }
 
     async def arbitrate(
-        self, 
-        template_text: str, 
-        applied_rules: List[str], 
-        vote1: PanelVote, 
+        self,
+        template_text: str,
+        applied_rules: List[str],
+        vote1: PanelVote,
         vote2: PanelVote,
         client_name: Optional[str] = None,
         frequency: int = 1
@@ -93,9 +100,10 @@ class Arbiter:
         Ejecuta la mediación usando el modelo arbiter configurado.
         """
         try:
-            response = await self.client.beta.chat.completions.parse(
-                model=settings.MODEL_ARBITER,
-                messages=[
+            # Algunos modelos (como gpt-5-nano) no soportan temperature=0.0
+            kwargs = {
+                "model": settings.MODEL_ARBITER,
+                "messages": [
                     {"role": "system", "content": ARBITER_SYSTEM_PROMPT},
                     {"role": "user", "content": ARBITER_USER_PROMPT.format(
                         taxonomy_context=self.taxonomy_context,
@@ -109,10 +117,15 @@ class Arbiter:
                         conf2=vote2.confidence
                     )}
                 ],
-                response_format=self._get_schema(),
-                temperature=0.0
-            )
-            
+                "response_format": ArbiterResponse,
+            }
+
+            # Solo agregar temperature si el modelo lo soporta
+            if not settings.MODEL_ARBITER.startswith("gpt-5"):
+                kwargs["temperature"] = 0.0
+
+            response = await self.client.beta.chat.completions.parse(**kwargs)
+
             # Devolvemos el objeto real de la respuesta parseada
             return response.choices[0].message.parsed
         except Exception as e:

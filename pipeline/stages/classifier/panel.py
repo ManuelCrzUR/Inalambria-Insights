@@ -1,6 +1,7 @@
 import asyncio
 import json
 from typing import List, Tuple, Optional
+from pydantic import BaseModel, Field
 from openai import AsyncOpenAI
 from pipeline.stages.classifier.base import PanelVote
 from config import settings
@@ -14,11 +15,15 @@ Tu tarea es clasificar la plantilla de mensaje proporcionada en EXACTAMENTE una 
 REGLAS CRÍTICAS:
 1. Debes usar SOLO los identificadores de etiqueta proporcionados (ej: 'banking::otp_2fa').
 2. Guíate por la descripción de cada etiqueta para asegurar la precisión.
-3. Los 'applied_rules' indican qué datos variables se encontraron:
-   - ['amount'] -> Alta probabilidad de transacciones, créditos o servicios públicos.
-   - ['otp'] -> Casi siempre banking::otp_2fa.
-   - ['date', 'url'] -> Notificaciones, recordatorios o seguimiento.
-4. Sé honesto con la confianza (0.0 a 1.0). No exageres si el mensaje es ambiguo.
+3. Los 'applied_rules' indican qué datos variables se encontraron - SON MUY RELEVANTES:
+   - ['otp'] -> SIEMPRE banking::otp_2fa (nunca otro)
+   - ['amount'] -> Muy probable transacciones, créditos o servicios públicos
+   - ['date', 'url'] -> Notificaciones, recordatorios, seguimiento
+4. REGLA DE PREFERENCIA: Si dudas entre una etiqueta genérica y una específica (con ::), prefiere la ESPECÍFICA.
+5. Sé honesto con la confianza (0.0 a 1.0). No exageres si el mensaje es ambiguo.
+   - Alta confianza (0.8+): Muy claro, matches reglas exactas
+   - Media confianza (0.5-0.8): Probable pero con algo de ambigüedad
+   - Baja confianza (<0.5): Muy ambiguo, múltiples interpretaciones válidas
 """
 
 PANEL_USER_PROMPT = """
@@ -32,6 +37,11 @@ Cliente/Sender: {client_name}
 
 Clasifica esta plantilla.
 """
+
+class PanelClassificationResponse(BaseModel):
+    """Esquema de respuesta para el panel de clasificación"""
+    label: str = Field(description="Etiqueta de clasificación")
+    confidence: float = Field(description="Confianza de 0.0 a 1.0")
 
 class HeterogeneousPanel:
     """
@@ -75,9 +85,10 @@ class HeterogeneousPanel:
     async def _call_judge(self, model: str, template_text: str, applied_rules: List[str], client_name: str) -> PanelVote:
         """Realiza una llamada individual a un modelo."""
         try:
-            response = await self.client.beta.chat.completions.parse(
-                model=model,
-                messages=[
+            # Algunos modelos (como gpt-5-nano) no soportan temperature=0.0
+            kwargs = {
+                "model": model,
+                "messages": [
                     {"role": "system", "content": PANEL_SYSTEM_PROMPT},
                     {"role": "user", "content": PANEL_USER_PROMPT.format(
                         taxonomy_context=self.taxonomy_context,
@@ -86,10 +97,15 @@ class HeterogeneousPanel:
                         client_name=client_name or "Desconocido"
                     )}
                 ],
-                response_format=self._get_schema(),
-                temperature=0.0 # Garantizar determinismo
-            )
-            
+                "response_format": PanelClassificationResponse,
+            }
+
+            # Solo agregar temperature si el modelo lo soporta
+            if not model.startswith("gpt-5"):
+                kwargs["temperature"] = 0.0
+
+            response = await self.client.beta.chat.completions.parse(**kwargs)
+
             result = response.choices[0].message.parsed
             return PanelVote(
                 label=result.label,
