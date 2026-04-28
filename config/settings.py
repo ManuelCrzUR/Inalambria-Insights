@@ -48,3 +48,22 @@ REDIS_THRESHOLD = int(os.getenv("REDIS_THRESHOLD", "50"))
 
 # Días máximos de inactividad para mantener en Redis
 REDIS_TTL_DAYS = int(os.getenv("REDIS_TTL_DAYS", "90"))
+
+# ============================================================
+# CLASSIFICADOR (LLM PANEL + ÁRBITRO)
+# ============================================================
+
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+if not OPENAI_API_KEY:
+    import warnings
+    warnings.warn("OPENAI_API_KEY no está definida. El clasificador no funcionará sin ella.")
+
+MODEL_PANEL_1 = os.getenv("MODEL_PANEL_1", "gpt-4o-mini")
+MODEL_PANEL_2 = os.getenv("MODEL_PANEL_2", "gpt-5-nano")
+MODEL_ARBITER = os.getenv("MODEL_ARBITER", "gpt-5.4")
+
+CLASSIFIER_AGREEMENT_THRESHOLD = float(os.getenv("CLASSIFIER_AGREEMENT_THRESHOLD", "0.7"))
+CLASSIFIER_CONCURRENCY = int(os.getenv("CLASSIFIER_CONCURRENCY", "10"))
+
+TAXONOMY_PATH = Path(os.getenv("TAXONOMY_PATH", BASE_DIR / "config" / "taxonomy.json"))
+CLASSIFICATIONS_OUTPUT_FILENAME = os.getenv("CLASSIFICATIONS_OUTPUT_FILENAME", "classifications.jsonl")
