@@ -371,3 +371,95 @@ class RegexRuleConfig:
     def __repr__(self) -> str:
         status = "✓" if self.enabled else "✗"
         return f"Rule({status} {self.name}, priority={self.priority})"
+
+
+# ============================================================================
+# NIVEL 5: CLASIFICACIÓN SINTÉTICA (Etiquetas L4)
+# ============================================================================
+
+@dataclass
+class ClassificationResult:
+    """
+    Representa el resultado de la clasificación sintética L4 de una plantilla.
+    
+    Captura la decisión del panel heterogéneo (mini + nano) y, si fue necesario,
+    la intervención del árbitro de alta inteligencia.
+    """
+    
+    # --- Input (Ref: unique_templates.jsonl) ---
+    template_id: str
+    """Hash único de la plantilla."""
+    
+    template_text: str
+    """Texto de la plantilla procesada."""
+    
+    applied_rules: List[str] = field(default_factory=list)
+    """Reglas regex encontradas en la plantilla original."""
+    
+    frequency: int = 1
+    """Popularidad de la plantilla en el dataset."""
+
+    # --- Veredicto Final ---
+    label: str = ""
+    """Etiqueta compuesta final (ej: 'Financiero::OTP')."""
+    
+    category: str = ""
+    """Categoría principal (ej: 'Financiero')."""
+    
+    subcategory: str = ""
+    """Subcategoría específica (ej: 'OTP')."""
+    
+    confidence: float = 0.0
+    """Confianza final del veredicto (0.0 a 1.0)."""
+
+    # --- Trazabilidad del Proceso ---
+    level_used: str = "pending"
+    """Nivel que resolvió: 'panel_agreement' | 'arbiter' | 'human_review'."""
+    
+    agreement: bool = False
+    """Indica si el panel de jueces estuvo de acuerdo inicialmente."""
+
+    # --- Jueces del Panel (Heterogéneo) ---
+    panel_judge_1: Optional[str] = None
+    """Voto del Juez 1 (gpt-4o-mini)."""
+    
+    panel_judge_1_conf: Optional[float] = None
+    """Confianza reportada por Juez 1."""
+    
+    panel_judge_2: Optional[str] = None
+    """Voto del Juez 2 (gpt-5-nano)."""
+    
+    panel_judge_2_conf: Optional[float] = None
+    """Confianza reportada por Juez 2."""
+
+    # --- El Árbitro (Solo si level_used == 'arbiter') ---
+    arbiter_label: Optional[str] = None
+    """Voto otorgado por el árbitro gpt-5.4."""
+    
+    arbiter_abstained: bool = False
+    """Indica si el árbitro se abstuvo por falta de información."""
+    
+    arbiter_reasoning: Optional[str] = None
+    """Justificación textual de la decisión del árbitro."""
+
+    # --- Calidad y Metadata ---
+    needs_human_review: bool = False
+    """Flag para casos complejos o abstenciones del árbitro."""
+    
+    is_synthetic: bool = True
+    """Siempre True para clasificaciones por LLM."""
+    
+    classified_at: str = field(default_factory=lambda: datetime.now().isoformat())
+    """Timestamp de la clasificación."""
+    
+    metadata: Dict = field(default_factory=dict)
+    """Datos adicionales de la API o performance."""
+
+    def to_dict(self) -> dict:
+        """Serializa para JSONL de salida."""
+        from dataclasses import asdict
+        return asdict(self)
+
+    def __repr__(self) -> str:
+        status = "✅" if self.agreement else ("⚖️" if not self.needs_human_review else "❓")
+        return f"ClassificationResult({status} {self.label}, conf={self.confidence:.2f})"

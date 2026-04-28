@@ -1,0 +1,162 @@
+{
+  "version": "1.0.0",
+  "description": "Taxonomía de 39 etiquetas compuestas para clasificación de SMS comerciales en Colombia con enfoque en Credit Scoring e Insights Financieros.",
+  "labels": [
+    {
+      "label": "banking::transaction_alerts",
+      "description": "Confirmaciones en tiempo real de débitos y créditos en cuentas bancarias o tarjetas de crédito. Ejemplo: 'Tu compra en Éxito por $45,000 fue aprobada'."
+    },
+    {
+      "label": "banking::otp_2fa",
+      "description": "Contraseñas de un solo uso enviadas para inicio de sesión o autorización de transacciones. Ejemplo: 'Tu código de seguridad Bancolombia es 847291'."
+    },
+    {
+      "label": "banking::payment_due",
+      "description": "Recordatorios de pagos próximos o vencidos para productos de crédito. Revela la existencia de obligaciones de crédito activas."
+    },
+    {
+      "label": "banking::balance_alerts",
+      "description": "Notificaciones de umbrales de saldo en cuenta o advertencias de saldo bajo. Indica una cuenta que es monitoreada activamente."
+    },
+    {
+      "label": "banking::loan_related",
+      "description": "Alertas vinculadas a productos de préstamo activos: desembolsos, confirmaciones de cuotas u ofertas de reestructuración."
+    },
+    {
+      "label": "banking::fraud_alerts",
+      "description": "Notificaciones de actividad sospechosa y bloqueos de tarjeta. Indica que el banco monitorea esta cuenta activamente."
+    },
+    {
+      "label": "collections::extrajudicial_notice",
+      "description": "Intentos de cobro pre-legal de firmas de recuperación de deuda o prestamistas. Es la señal negativa individual más fuerte."
+    },
+    {
+      "label": "collections::legal_notice",
+      "description": "Notificaciones formales de cobro legal o procesos judiciales. Indica que la deuda ha escalado más allá de la recuperación voluntaria."
+    },
+    {
+      "label": "collections::credit_bureau_alert",
+      "description": "Notificaciones de DataCrédito, TransUnion o burós similares sobre cambios en el reporte de crédito."
+    },
+    {
+      "label": "lending_and_credit::loan_offer_response",
+      "description": "Confirmaciones de que el usuario interactuó con una oferta de préstamo. Un pico indica que el solicitante está buscando crédito en múltiples lugares."
+    },
+    {
+      "label": "lending_and_credit::loan_disbursement",
+      "description": "Notificación de que el monto de un préstamo ha sido depositado. Confirma una obligación de deuda reciente."
+    },
+    {
+      "label": "lending_and_credit::payment_confirmation",
+      "description": "Confirmación de que se recibió el pago de una cuota de préstamo. Indica un deudor que atiende sus compromisos consistentemente."
+    },
+    {
+      "label": "lending_and_credit::collection_notice",
+      "description": "Mensajes de cobranza originados directamente por el prestamista inicial. Señal de mora en etapa temprana."
+    },
+    {
+      "label": "utilities::electricity",
+      "description": "Notificaciones de facturación y pago de proveedores de energía (EPM, Enel, Codensa). Proxy de dirección fija y estabilidad."
+    },
+    {
+      "label": "utilities::water",
+      "description": "Notificaciones de facturación y consumo de acueductos. Confirma un hogar permanente."
+    },
+    {
+      "label": "utilities::gas",
+      "description": "Facturación de distribuidores de gas natural. Parte del compuesto de servicios para señales de confiabilidad."
+    },
+    {
+      "label": "utilities::internet",
+      "description": "Notificaciones de facturación y servicio de proveedores de banda ancha. Correlaciona con participación en economía digital."
+    },
+    {
+      "label": "utilities::payment_due",
+      "description": "Recordatorios de pago vencido o próximo para servicios públicos. Indicador temprano de estrés financiero."
+    },
+    {
+      "label": "pension_and_employment::afp_contribution",
+      "description": "Notificaciones de fondos de pensiones privados sobre recibos de aportes. Proxy de empleo formal en nómina."
+    },
+    {
+      "label": "pension_and_employment::colpensiones",
+      "description": "Notificaciones del sistema público de pensiones sobre aportes o estado. Confirma empleo en el sector formal."
+    },
+    {
+      "label": "pension_and_employment::cesantias",
+      "description": "Notificaciones de administradoras de fondos de cesantías. Confirma contrato laboral activo y antigüedad."
+    },
+    {
+      "label": "pension_and_employment::social_programs",
+      "description": "Notificaciones de programas gubernamentales (ej. Familias en Acción). Confirma identidad registrada e ingresos recurrentes."
+    },
+    {
+      "label": "government::dian",
+      "description": "Notificaciones de la autoridad tributaria sobre declaraciones o pagos. Implica ingresos gravables o actividad comercial formal."
+    },
+    {
+      "label": "government::electoral",
+      "description": "Registro de votantes y notificaciones electorales de la Registraduría. Confirma anclaje de identidad a largo plazo."
+    },
+    {
+      "label": "government::traffic_fines",
+      "description": "Notificaciones de multas de tránsito (SIMIT). Indica propiedad de vehículo y presencia física local."
+    },
+    {
+      "label": "government::other_public",
+      "description": "Notificaciones de entidades como SENA o Supersalud. Amplía el panorama de interacción formal con el Estado."
+    },
+    {
+      "label": "healthcare::eps",
+      "description": "Recordatorios de citas y notificaciones de servicios de EPS. Ligado al estado de empleo formal."
+    },
+    {
+      "label": "healthcare::pharmacy",
+      "description": "Confirmaciones de compra de cadenas de farmacias. Indica actividad de consumo regular y estable."
+    },
+    {
+      "label": "healthcare::lab_results",
+      "description": "Notificaciones de resultados de laboratorio o imágenes. Refuerza participación en sistema formal de salud."
+    },
+    {
+      "label": "real_estate::mortgage",
+      "description": "Recordatorios de pago de préstamos para vivienda. Señal de seriedad financiera y propiedad de activos."
+    },
+    {
+      "label": "real_estate::admin_fees",
+      "description": "Notificaciones de cuotas de administración de edificios. Señala propiedad o alquiler residencial formal."
+    },
+    {
+      "label": "real_estate::rental_platform",
+      "description": "Confirmaciones de pago de arriendo desde plataformas digitales. Confirma un acuerdo de alquiler formal."
+    },
+    {
+      "label": "commerce_retail::high_end",
+      "description": "Notificaciones de compra de minoristas premium (Falabella, Ripley). Proxy de capacidad de gasto discrecional."
+    },
+    {
+      "label": "commerce_retail::mid_market",
+      "description": "Notificaciones de minoristas masivos (Éxito, Jumbo). Representa patrones de consumo estables de un hogar."
+    },
+    {
+      "label": "commerce_retail::popular",
+      "description": "Notificaciones de minoristas de descuento (D1, Ara). Valioso para análisis de segmentos de microcrédito."
+    },
+    {
+      "label": "commerce_retail::ecommerce",
+      "description": "Confirmaciones de pedido y entrega de plataformas de e-commerce. Confirma participación en comercio digital."
+    },
+    {
+      "label": "gambling::sports_betting",
+      "description": "Notificaciones de transacciones en plataformas de apuestas deportivas. Bandera de riesgo si aumenta junto a estrés financiero."
+    },
+    {
+      "label": "gambling::casino",
+      "description": "Notificaciones de actividad en casinos en línea. El aumento de actividad señala un riesgo de comportamiento compuesto."
+    },
+    {
+      "label": "gambling::lottery",
+      "description": "Compra de boletos y resultados (Baloto, Loterías). Incluido para el scoring conductual compuesto."
+    }
+  ]
+}
