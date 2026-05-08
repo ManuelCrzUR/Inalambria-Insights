@@ -52,14 +52,49 @@ class DriveDataLoader:
     def __init__(self):
         """Inicializar autenticación con Drive"""
         try:
-            from pydrive2.auth import GoogleAuth
-            from pydrive2.drive import GoogleDrive
+            from google.auth.transport.requests import Request
+            from google.oauth2.credentials import Credentials
+            from google_auth_oauthlib.flow import InstalledAppFlow
+            from googleapiclient.discovery import build
+            from googleapiclient.http import MediaIoBaseDownload
+            import os
 
-            # Autenticación (pide login interactivo la primera vez)
-            self.gauth = GoogleAuth()
-            self.gauth.LocalWebserverAuth()
-            self.drive = GoogleDrive(self.gauth)
+            SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+            creds = None
+            token_file = Path.home() / '.cache' / 'twnel_drive_token.json'
+
+            # Cargar token existente
+            if token_file.exists():
+                creds = Credentials.from_authorized_user_file(str(token_file), SCOPES)
+
+            # Si no hay token o es inválido, pedir autorización
+            if not creds or not creds.valid:
+                if creds and creds.expired and creds.refresh_token:
+                    creds.refresh(Request())
+                else:
+                    # Autorización interactiva (abre navegador)
+                    flow = InstalledAppFlow.from_client_secrets_file(
+                        'client_secret_drive.json',
+                        SCOPES
+                    )
+                    creds = flow.run_local_server(port=0)
+
+                # Guardar token para futuras ejecuciones
+                token_file.parent.mkdir(parents=True, exist_ok=True)
+                with open(token_file, 'w') as f:
+                    f.write(creds.to_json())
+
+            self.drive = build('drive', 'v3', credentials=creds)
+            self.credentials = creds
             logger.info("✅ Autenticado con Google Drive")
+        except FileNotFoundError:
+            logger.error("❌ No se encontró 'client_secret_drive.json'")
+            logger.info("📝 Sigue estos pasos para obtenerlo:")
+            logger.info("   1. Ve a https://console.cloud.google.com/apis/credentials")
+            logger.info("   2. Crea un 'OAuth 2.0 Client ID' tipo 'Desktop application'")
+            logger.info("   3. Descárgalo como JSON y renómbralo a 'client_secret_drive.json'")
+            logger.info("   4. Coloca el archivo en: " + str(Path.cwd() / "client_secret_drive.json"))
+            raise
         except Exception as e:
             logger.error(f"❌ Error autenticando con Drive: {e}")
             raise
@@ -72,13 +107,21 @@ class DriveDataLoader:
             Lista de DataFrames con los datos
         """
         try:
-            from pydrive2.drive import GoogleDrive
+            from googleapiclient.http import MediaIoBaseDownload
+            import io
 
             logger.info(f"Buscando parquets en carpeta {folder_id}...")
 
-            file_list = self.drive.ListFile({
-                'q': f"'{folder_id}' in parents and trashed=false and mimeType='application/x-parquet'"
-            }).GetList()
+            # Buscar archivos .parquet
+            query = f"'{folder_id}' in parents and trashed=false and mimeType='application/octet-stream' and name contains '.parquet'"
+            results = self.drive.files().list(q=query, spaces='drive', fields='files(id, name, mimeType)', pageSize=100).execute()
+            file_list = results.get('files', [])
+
+            # Si no encuentra con octet-stream, intentar con extension
+            if not file_list:
+                query = f"'{folder_id}' in parents and trashed=false and name contains '.parquet'"
+                results = self.drive.files().list(q=query, spaces='drive', fields='files(id, name, mimeType)', pageSize=100).execute()
+                file_list = results.get('files', [])
 
             if not file_list:
                 logger.warning("⚠️  No se encontraron archivos .parquet en Drive")
@@ -86,12 +129,26 @@ class DriveDataLoader:
 
             dfs = []
             for file in file_list:
-                logger.info(f"  Descargando {file['title']}...")
-                file.GetContentFile(file['title'])
-                df = pd.read_parquet(file['title'])
-                dfs.append(df)
-                Path(file['title']).unlink()  # Limpiar archivo temporal
-                logger.info(f"  ✅ {file['title']} cargado ({len(df)} filas)")
+                try:
+                    logger.info(f"  Descargando {file['name']}...")
+
+                    # Descargar a buffer
+                    request = self.drive.files().get_media(fileId=file['id'])
+                    fh = io.BytesIO()
+                    downloader = MediaIoBaseDownload(fh, request)
+
+                    done = False
+                    while not done:
+                        status, done = downloader.next_chunk()
+
+                    # Leer desde buffer
+                    fh.seek(0)
+                    df = pd.read_parquet(fh)
+                    dfs.append(df)
+                    logger.info(f"  ✅ {file['name']} cargado ({len(df)} filas)")
+                except Exception as e:
+                    logger.warning(f"  ⚠️  Error descargando {file['name']}: {e}")
+                    continue
 
             logger.info(f"Total: {len(dfs)} archivos descargados")
             return dfs

@@ -23,13 +23,26 @@ pip install pydrive2 google-auth-oauthlib
 pip install -e .
 ```
 
-## 🔑 Paso 1: Obtener el Folder ID de Google Drive
+## 🔑 Paso 1: Configurar Autenticación con Google Drive
+
+⚠️ **PRIMERO** configura las credenciales OAuth:
+
+👉 **[Lee la guía: GOOGLE_DRIVE_AUTH.md](./GOOGLE_DRIVE_AUTH.md)**
+
+En resumen:
+1. Crea proyecto en [Google Cloud Console](https://console.cloud.google.com/)
+2. Habilita Google Drive API
+3. Crea credenciales OAuth 2.0 (tipo Desktop)
+4. Descarga el JSON y renómbralo a `client_secret_drive.json`
+5. Coloca el archivo aquí: `C:\Users\manue\Desktop\Twnel\pipeline\client_secret_drive.json`
+
+## 🔑 Paso 2: Obtener el Folder ID de Google Drive
 
 1. Abre tu carpeta de parquets en [Google Drive](https://drive.google.com)
 2. La URL se ve así: `https://drive.google.com/drive/folders/ESTO_ES_TU_FOLDER_ID`
 3. Copia `ESTO_ES_TU_FOLDER_ID`
 
-## 🎯 Paso 2: Ejecutar el Pipeline
+## 🎯 Paso 3: Ejecutar el Pipeline
 
 ### Opción A: Línea de comandos (rápido)
 
@@ -39,7 +52,7 @@ cd C:\Users\manue\Desktop\Twnel\pipeline
 python run_pipeline_locally.py --folder-id "TU_FOLDER_ID"
 ```
 
-**Primera ejecución:** Abrirá navegador para autenticar con Google. Aprueba y cierra.
+**Primera ejecución:** Abrirá navegador para autorizar el acceso. Aprueba y cierra. El token se guarda automáticamente.
 
 ### Opción B: Con archivo de configuración
 
