@@ -39,6 +39,54 @@ from pipeline.core.models import NormalizedMessage, RegexRuleConfig, Template
 
 PLACEHOLDER_RULES: List[RegexRuleConfig] = [
     RegexRuleConfig(
+        name="entidad_bancaria",
+        pattern=(
+            r"\b(bancolombia|davivienda|nequi|bbva|ita[uú]|scotiabank|"
+            r"banco\s+de\s+bogot[aá]|av\s+villas|colpatria|gnb\s+sudameris|"
+            r"banco\s+popular|pichincha|bold|daviplata|rappipay)\b"
+        ),
+        placeholder="[ENTIDAD_BANCARIA]",
+        priority=3,
+    ),
+    RegexRuleConfig(
+        name="plataforma",
+        pattern=(
+            r"\b(app\s+m[oó]vil|portal\s+web|banca\s+virtual|banca\s+m[oó]vil|"
+            r"aplicaci[oó]n|plataforma\s+digital|sucursal\s+virtual|"
+            r"(?<!\w)app(?!\w)|(?<!\w)web(?!\w)|portal(?!\w))\b"
+        ),
+        placeholder="[PLATAFORMA]",
+        priority=4,
+    ),
+    RegexRuleConfig(
+        name="entidad_eps",
+        pattern=(
+            r"\b(nueva\s+eps|famisanar|eps\s+sanitas|sura\s+eps|compensar\s+eps|"
+            r"salud\s+total|coosalud|coomeva|aliansalud|medim[aá]s|sura|sanitas)\b"
+        ),
+        placeholder="[ENTIDAD_EPS]",
+        priority=5,
+    ),
+    RegexRuleConfig(
+        name="producto_bancario",
+        pattern=(
+            r"\b(cuenta\s+de\s+ahorros|cuenta\s+corriente|tarjeta\s+de\s+cr[eé]dito|"
+            r"tarjeta\s+d[eé]bito|tarjeta\s+cr[eé]dito|cr[eé]dito\s+hipotecario|"
+            r"cdp|fondo\s+de\s+inversi[oó]n|cartera\s+ordinaria)\b"
+        ),
+        placeholder="[PRODUCTO_BANCARIO]",
+        priority=6,
+    ),
+    RegexRuleConfig(
+        name="movimiento_bancario",
+        pattern=(
+            r"\b(transferencia|d[eé]bito|retiro|consignaci[oó]n|pago\s+exitoso|"
+            r"tr[aá]nsacci[oó]n|compra|disposici[oó]n|abono|cargo)\b"
+        ),
+        placeholder="[MOVIMIENTO_BANCARIO]",
+        priority=7,
+    ),
+    RegexRuleConfig(
         name="url",
         pattern=r"https?://\S+|www\.\S+",
         placeholder="[URL]",

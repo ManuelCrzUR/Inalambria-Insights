@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\manue\\\\Desktop\\\\Twnel\\\\pipeline\" -Force)",
+      "Bash(Select-Object Name, Mode)",
+      "Bash(python -m pytest tests/test_rule_classifier.py -v)",
+      "Bash(python -m pytest tests/test_template_extractor_new_tokens.py -v)",
+      "Bash(python -m pytest tests/test_template_extractor.py -v --tb=short)",
+      "Bash(python -m pytest tests/test_classifier_orchestrator.py -v --tb=short)",
+      "Bash(git add *)"
+    ]
+  }
+}

@@ -6,9 +6,12 @@ Coordina la clasificación de plantillas a través del panel heterogéneo
 para resolver desacuerdos.
 
 Arquitectura:
-    template → panel.classify_parallel() → agreement?
-                                          ├─ YES → final label
-                                          └─ NO  → arbiter.arbitrate() → final label
+    template → L0: RuleClassifier.classify() → match?
+                                              ├─ YES → final label (rule, confidence=1.0)
+                                              └─ NO  → L1: panel.classify_parallel()
+                                                        → agreement?
+                                                          ├─ YES → final label
+                                                          └─ NO  → L2: arbiter → final label
 
 Emite ClassificationResult con trazabilidad completa (votos del panel, árbitro, level_used).
 """
@@ -20,6 +23,7 @@ from pipeline.stages.classifier.base import PanelVote
 from pipeline.stages.classifier.panel import HeterogeneousPanel
 from pipeline.stages.classifier.arbiter import Arbiter
 from pipeline.stages.classifier.storage import ClassificationStore
+from pipeline.stages.rule_classifier import RuleClassifier
 
 
 class ClassifierStage:
@@ -33,6 +37,7 @@ class ClassifierStage:
         panel: HeterogeneousPanel,
         arbiter: Arbiter,
         store: ClassificationStore,
+        rule_classifier: Optional[RuleClassifier] = None,
         agreement_threshold: float = 0.5,
         concurrency: int = 10,
     ):
@@ -43,12 +48,14 @@ class ClassifierStage:
             panel: HeterogeneousPanel (mini + nano en paralelo)
             arbiter: Arbiter (gpt-5.4)
             store: ClassificationStore (persistencia)
+            rule_classifier: RuleClassifier L0 (opcional, si None omite L0)
             agreement_threshold: confianza mínima para considerar acuerdo (0.0-1.0)
             concurrency: llamadas LLM paralelas máximas
         """
         self.panel = panel
         self.arbiter = arbiter
         self.store = store
+        self.rule_classifier = rule_classifier
         self.agreement_threshold = agreement_threshold
         self.concurrency = concurrency
         self.semaphore = asyncio.Semaphore(concurrency)
@@ -65,10 +72,12 @@ class ClassifierStage:
         Clasifica una plantilla individual.
 
         Flujo:
-        1. Panel vota en paralelo (mini + nano).
-        2. Si acuerdo (labels iguales + min confidence ≥ threshold) → final label = panel vote.
-        3. Si NO acuerdo → árbitro arbitra.
-        4. Si árbitro dice ABSTAIN → marca para revisión humana.
+        1. L0 RuleClassifier: intenta clasificar por reglas determinísticas.
+        2. Si match → retorna resultado (confidence=1.0, level_used="rule").
+        3. Si miss → escala a L1: Panel vota en paralelo (mini + nano).
+        4. Si acuerdo → final label = panel vote (level_used="panel_agreement").
+        5. Si NO acuerdo → L2: árbitro arbitra.
+        6. Si árbitro dice ABSTAIN → marca para revisión humana.
 
         Args:
             template_id: hash único de la plantilla
@@ -82,7 +91,25 @@ class ClassifierStage:
         """
         try:
             async with self.semaphore:
-                # Paso 1: Panel vota en paralelo
+                # ── L0: RuleClassifier (nuevo) ──────────────────────────────
+                if self.rule_classifier:
+                    rule_match = self.rule_classifier.classify(template_text, client_name)
+                    if rule_match:
+                        return ClassificationResult(
+                            template_id=template_id,
+                            template_text=template_text,
+                            applied_rules=applied_rules,
+                            frequency=frequency,
+                            label=rule_match.label,
+                            category=rule_match.label.split("::")[0] if "::" in rule_match.label else rule_match.label,
+                            subcategory=rule_match.label.split("::")[1] if "::" in rule_match.label else "",
+                            confidence=rule_match.confidence,
+                            level_used="rule",
+                            agreement=True,
+                            metadata={"rule_name": rule_match.rule_name},
+                        )
+
+                # ── L1: Panel vota en paralelo ──────────────────────────────
                 vote1, vote2 = await self.panel.classify_parallel(
                     template_text, applied_rules, client_name
                 )
