@@ -1,0 +1,7 @@
+{
+  "drive_folder_id": "PASTE_YOUR_FOLDER_ID_HERE",
+  "output_dir": "C:\\Users\\manue\\.cache\\twnel_pipeline\\reports",
+  "db_path": "C:\\Users\\manue\\.cache\\twnel_pipeline\\pipeline.db",
+  "upload_to_drive": false,
+  "sample_size": null
+}
