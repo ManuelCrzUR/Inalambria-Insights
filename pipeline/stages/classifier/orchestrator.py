@@ -18,12 +18,13 @@ Emite ClassificationResult con trazabilidad completa (votos del panel, árbitro,
 
 import asyncio
 from typing import AsyncIterator, Optional, List
-from pipeline.core.models import ClassificationResult
+from pipeline.core.models import ClassificationResult, Template
 from pipeline.stages.classifier.base import PanelVote
 from pipeline.stages.classifier.panel import HeterogeneousPanel
 from pipeline.stages.classifier.arbiter import Arbiter
 from pipeline.stages.classifier.storage import ClassificationStore
 from pipeline.stages.rule_classifier import RuleClassifier
+from pipeline.storage.sql_template_store import SQLTemplateStore, TemplateMetadata
 
 
 class ClassifierStage:
@@ -38,6 +39,7 @@ class ClassifierStage:
         arbiter: Arbiter,
         store: ClassificationStore,
         rule_classifier: Optional[RuleClassifier] = None,
+        sql_store: Optional[SQLTemplateStore] = None,
         agreement_threshold: float = 0.5,
         concurrency: int = 10,
     ):
@@ -47,8 +49,9 @@ class ClassifierStage:
         Args:
             panel: HeterogeneousPanel (mini + nano en paralelo)
             arbiter: Arbiter (gpt-5.4)
-            store: ClassificationStore (persistencia)
+            store: ClassificationStore JSONL (persistencia)
             rule_classifier: RuleClassifier L0 (opcional, si None omite L0)
+            sql_store: SQLTemplateStore SQL (opcional, si None omite persistencia SQL)
             agreement_threshold: confianza mínima para considerar acuerdo (0.0-1.0)
             concurrency: llamadas LLM paralelas máximas
         """
@@ -56,6 +59,7 @@ class ClassifierStage:
         self.arbiter = arbiter
         self.store = store
         self.rule_classifier = rule_classifier
+        self.sql_store = sql_store
         self.agreement_threshold = agreement_threshold
         self.concurrency = concurrency
         self.semaphore = asyncio.Semaphore(concurrency)
@@ -199,18 +203,53 @@ class ClassifierStage:
                 metadata={"error": str(e), "error_type": type(e).__name__},
             )
 
+    def _build_template_metadata(self, template: dict) -> Optional[TemplateMetadata]:
+        """
+        Construye TemplateMetadata a partir de un dict de template.
+
+        Args:
+            template: dict con datos del template (puede venir de Template u otro formato)
+
+        Returns:
+            TemplateMetadata o None si no hay datos suficientes
+        """
+        from datetime import datetime
+
+        # Intentar construir metadata con los datos disponibles
+        metadata = TemplateMetadata(
+            original_message=template.get("original_message"),
+            cleaned_message=template.get("cleaned_message"),
+            client_name=template.get("client_name"),
+            client_id=template.get("client_id"),
+            phone_number=template.get("phone_number"),
+            operator_name=template.get("operator_name"),
+            account_name=template.get("account_name"),
+            priority_description=template.get("priority_description"),
+            timestamp=template.get("timestamp"),  # datetime o None
+        )
+
+        # Si al menos tenemos original_message, retornamos la metadata
+        if metadata.original_message:
+            return metadata
+
+        return None
+
     async def classify_stream(
         self, templates: AsyncIterator[dict]
     ) -> AsyncIterator[ClassificationResult]:
         """
         Clasifica un stream de plantillas.
 
-        Cada resultado se persiste vía store.append() antes de ser emitido.
+        Cada resultado se persiste vía:
+        - store.append() en JSONL (existente)
+        - sql_store.upsert() en SQL (opcional)
+
         Usa asyncio.as_completed para emitir conforme terminen (no espera orden).
 
         Args:
             templates: async iterator de dicts con keys:
-                       {template_id, template_text, applied_rules, client_name?, frequency?}
+                       {template_id, template_text, applied_rules, client_name?,
+                        original_message?, cleaned_message?, phone_number?, etc.}
 
         Yields:
             ClassificationResult (ya persistido)
@@ -225,7 +264,15 @@ class ClassifierStage:
                 client_name=template.get("client_name"),
                 frequency=template.get("frequency", 1),
             )
+
+            # Persiste en JSONL (existente)
             await self.store.append(result)
+
+            # Persiste en SQL si está configurado (nuevo)
+            if self.sql_store:
+                metadata = self._build_template_metadata(template)
+                await self.sql_store.upsert(result, metadata)
+
             return result
 
         # Produce tareas de clasificación conforme vienen templates
