@@ -28,6 +28,7 @@ setup(
         "dev": [
             "pytest>=6.0",
             "pytest-cov>=2.12.0",
+            "pytest-asyncio>=0.21.0",
             "black>=21.0",
             "flake8>=3.9.0",
             "mypy>=0.910",
