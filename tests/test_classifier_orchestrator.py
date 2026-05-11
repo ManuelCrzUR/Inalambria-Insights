@@ -81,7 +81,7 @@ async def test_agreement_with_high_confidence(classifier_stage, mock_panel):
 
 
 @pytest.mark.asyncio
-async def test_disagreement_labels(classifier_stage, mock_panel, mock_arbiter):
+async def test_disagreement_labels(classifier_stage, mock_panel, mock_arbiter, requires_openai_api_key):
     """
     Test 2: Panel en desacuerdo (labels distintos)
     → Se llama arbiter, level="arbiter"
@@ -116,7 +116,7 @@ async def test_disagreement_labels(classifier_stage, mock_panel, mock_arbiter):
 
 
 @pytest.mark.asyncio
-async def test_low_confidence_triggers_arbiter(classifier_stage, mock_panel, mock_arbiter):
+async def test_low_confidence_triggers_arbiter(classifier_stage, mock_panel, mock_arbiter, requires_openai_api_key):
     """
     Test 3: Labels iguales pero confidences por debajo del threshold
     → Se llama arbiter (threshold=0.7, min(0.6, 0.65) < 0.7)
@@ -149,7 +149,7 @@ async def test_low_confidence_triggers_arbiter(classifier_stage, mock_panel, moc
 
 
 @pytest.mark.asyncio
-async def test_arbiter_abstain(classifier_stage, mock_panel, mock_arbiter):
+async def test_arbiter_abstain(classifier_stage, mock_panel, mock_arbiter, requires_openai_api_key):
     """
     Test 4: Arbiter responde ABSTAIN
     → needs_human_review=True, level="human_review"

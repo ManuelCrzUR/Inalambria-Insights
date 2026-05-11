@@ -7,6 +7,7 @@ sin necesidad de importarlas.
 """
 
 import pytest
+import os
 from pathlib import Path
 
 # Directorio raíz del proyecto
@@ -50,3 +51,12 @@ def fixtures_dir():
 def root_dir():
     """Ruta a la raíz del proyecto."""
     return ROOT_DIR
+
+
+@pytest.fixture
+def requires_openai_api_key():
+    """Fixture que skippea tests si OPENAI_API_KEY no está definida."""
+    api_key = os.getenv("OPENAI_API_KEY")
+    if not api_key:
+        pytest.skip("OPENAI_API_KEY no está definida. Test requiere acceso a OpenAI.")
+    return api_key
