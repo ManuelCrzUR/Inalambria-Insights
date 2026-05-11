@@ -38,6 +38,20 @@ from pipeline.core.models import NormalizedMessage, RegexRuleConfig, Template
 # ============================================================================
 
 PLACEHOLDER_RULES: List[RegexRuleConfig] = [
+    # ── Servicios de Utilidades ──
+    RegexRuleConfig(
+        name="acueducto",
+        pattern=r"\b(eaab)\b",
+        placeholder="[ACUEDUCTO]",
+        priority=3,
+    ),
+    RegexRuleConfig(
+        name="luz",
+        pattern=r"\b(celsia)\b",
+        placeholder="[LUZ]",
+        priority=3,
+    ),
+    # ── Entidades Bancarias ──
     RegexRuleConfig(
         name="entidad_bancaria",
         pattern=(
@@ -57,6 +71,56 @@ PLACEHOLDER_RULES: List[RegexRuleConfig] = [
         ),
         placeholder="[PLATAFORMA]",
         priority=4,
+    ),
+    # ── Documentos y Comunicación ──
+    RegexRuleConfig(
+        name="factura",
+        pattern=r"\b(factura)\b",
+        placeholder="[FACTURA]",
+        priority=4,
+    ),
+    RegexRuleConfig(
+        name="telegram",
+        pattern=r"\b(telegram)\b",
+        placeholder="[TELEGRAM]",
+        priority=4,
+    ),
+    RegexRuleConfig(
+        name="login",
+        pattern=r"\b(log\s+in|ingresar|iniciar\s+sesi[oó]n)\b",
+        placeholder="[LOGIN]",
+        priority=5,
+    ),
+    RegexRuleConfig(
+        name="apps",
+        pattern=r"\b(whatsapp|temu|telegram|instagram|facebook|twitter)\b",
+        placeholder="[APPS]",
+        priority=5,
+    ),
+    # ── Seguros y Alternativas de Pago ──
+    RegexRuleConfig(
+        name="alternativa_pago",
+        pattern=r"\b(opci[oó]n(?:es)?\s+de\s+pago|alternativa(?:s)?\s+de\s+pago|m[eé]todo(?:s)?\s+de\s+pago)\b",
+        placeholder="[ALTERNATIVA_PAGO]",
+        priority=5,
+    ),
+    RegexRuleConfig(
+        name="seguros",
+        pattern=r"\b(seguros\s+mundial|mundial\s+seguros|seguros)\b",
+        placeholder="[SEGUROS]",
+        priority=6,
+    ),
+    RegexRuleConfig(
+        name="soat",
+        pattern=r"\b(soat)\b",
+        placeholder="[SOAT]",
+        priority=6,
+    ),
+    RegexRuleConfig(
+        name="activar",
+        pattern=r"\b(expidio|activar|activaci[oó]n)\b",
+        placeholder="[ACTIVAR]",
+        priority=7,
     ),
     RegexRuleConfig(
         name="entidad_eps",
@@ -81,10 +145,10 @@ PLACEHOLDER_RULES: List[RegexRuleConfig] = [
         name="movimiento_bancario",
         pattern=(
             r"\b(transferencia|d[eé]bito|retiro|consignaci[oó]n|pago\s+exitoso|"
-            r"tr[aá]nsacci[oó]n|compra|disposici[oó]n|abono|cargo)\b"
+            r"pago|tr[aá]nsacci[oó]n|compra|disposici[oó]n|abono|cargo)\b"
         ),
         placeholder="[MOVIMIENTO_BANCARIO]",
-        priority=7,
+        priority=8,
     ),
     RegexRuleConfig(
         name="url",

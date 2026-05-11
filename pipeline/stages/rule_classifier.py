@@ -118,6 +118,63 @@ CLASSIFICATION_RULES: List[ClassificationRule] = sorted([
         confidence=1.0,
     ),
 
+    # ── UTILIDADES (agua, luz, seguros) ──────────────────────────────────
+    ClassificationRule(
+        name="utilities_water",
+        label="utilities::water",
+        priority=12,
+        required_all=frozenset({"ACUEDUCTO", "FACTURA", "URL"}),
+        confidence=1.0,
+    ),
+    ClassificationRule(
+        name="utilities_light",
+        label="utilities::light",
+        priority=13,
+        required_all=frozenset({"LUZ", "FACTURA", "URL"}),
+        confidence=1.0,
+    ),
+    ClassificationRule(
+        name="utilities_insurance_renewal",
+        label="utilities::insurance_renewal",
+        priority=14,
+        required_all=frozenset({"SEGUROS", "ACTIVAR", "SOAT"}),
+        confidence=1.0,
+    ),
+
+    # ── DIGITAL SERVICES ─────────────────────────────────────────────────
+    ClassificationRule(
+        name="telegram_login",
+        label="digital_services::log_in",
+        priority=15,
+        required_all=frozenset({"TELEGRAM", "LOGIN"}),
+        confidence=1.0,
+    ),
+    ClassificationRule(
+        name="apps_otp",
+        label="digital_services::otp_2fa",
+        priority=16,
+        required_all=frozenset({"APPS", "OTP"}),
+        confidence=0.95,
+    ),
+
+    # ── BANKING: SOLUCIONES DE PAGO ──────────────────────────────────────
+    ClassificationRule(
+        name="banking_payment_solutions",
+        label="banking::payment_solutions",
+        priority=17,
+        required_all=frozenset({"ENTIDAD_BANCARIA", "PRODUCTO_BANCARIO", "ALTERNATIVA_PAGO"}),
+        confidence=1.0,
+    ),
+
+    # ── EXCLUSIONES (no clasificar) ──────────────────────────────────────
+    ClassificationRule(
+        name="exclude_phone_otp",
+        label="",  # Empty label para omitir clasificación
+        priority=18,
+        required_all=frozenset({"PHONE", "OTP"}),
+        confidence=0.0,
+    ),
+
     # ── BANKING: combinaciones de 3 tokens (más específicas) ────────────
     ClassificationRule(
         name="banking_otp_con_producto",
