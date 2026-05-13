@@ -5,7 +5,7 @@ Orquesta scan_messages + template_lookup + aggregator
 para retornar JSON de scoring financiero.
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, Union, List
 import os
 from pathlib import Path
 
@@ -25,7 +25,7 @@ class PhoneScorer:
 
     def __init__(
         self,
-        classifications_csv: str | Path,
+        classifications_csv: Union[str, Path],
         s3_bucket: str = "s3://inalambria-db-sms/imp3",
         s3_region: str = "us-east-2",
     ):
@@ -47,10 +47,10 @@ class PhoneScorer:
 
     def score_phones(
         self,
-        phones: str | list[str],
+        phones: Union[str, List[str]],
         lookback_days: int = 365,
         request_reference: Optional[str] = None,
-    ) -> Dict[str, Any] | list[Dict[str, Any]]:
+    ) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
         """
         Scoring para uno o múltiples teléfonos.
 
@@ -147,13 +147,13 @@ class PhoneScorer:
 
 # Función convenience (API simple)
 def score_phones(
-    phones: str | list[str],
+    phones: Union[str, List[str]],
     lookback_days: int = 365,
-    classifications_csv: Optional[str | Path] = None,
+    classifications_csv: Optional[Union[str, Path]] = None,
     s3_bucket: str = "s3://inalambria-db-sms/imp3",
     s3_region: str = "us-east-2",
     request_reference: Optional[str] = None,
-) -> Dict[str, Any] | list[Dict[str, Any]]:
+) -> Union[Dict[str, Any], List[Dict[str, Any]]]:
     """
     API simplificada: score_phones(phone) → JSON
 

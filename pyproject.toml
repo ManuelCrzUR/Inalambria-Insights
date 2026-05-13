@@ -54,7 +54,7 @@ Homepage = "https://github.com/inalambria/sms-template-pipeline"
 Repository = "https://github.com/inalambria/sms-template-pipeline"
 
 [tool.uv]
-python-version = "3.11"
+# uv configuration (python version is in [project] section as requires-python)
 
 [tool.uv.sources]
 # Pinned package versions (optional)

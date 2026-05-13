@@ -7,10 +7,10 @@ Lee all_rule_classifications.csv y construye un dict para lookups rápidos.
 
 import pandas as pd
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 
-def load_classifications(csv_path: str | Path) -> Dict[str, Dict]:
+def load_classifications(csv_path: Union[str, Path]) -> Dict[str, Dict]:
     """
     Lee CSV de clasificaciones → dict {template_id: {categoria, subcategoria, label, ...}}
 
