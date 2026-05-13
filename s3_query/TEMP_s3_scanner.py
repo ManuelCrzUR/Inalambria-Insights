@@ -17,9 +17,10 @@ def _get_duckdb_conn(memory_limit: str = "3GB", region: str = "us-east-2") -> du
     """
     Crea conexión DuckDB in-memory con httpfs para acceso a S3.
 
-    Soporta:
-    - EC2 con IAM role: credenciales vía IMDS (automático)
-    - Env vars: AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY
+    Soporta múltiples métodos de autenticación:
+    1. Env vars: AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_SESSION_TOKEN
+    2. IAM role en EC2 (vía IMDS)
+    3. Archivo de credenciales (~/.aws/credentials)
     """
     conn = duckdb.connect()  # in-memory connection
 
@@ -33,25 +34,39 @@ def _get_duckdb_conn(memory_limit: str = "3GB", region: str = "us-east-2") -> du
     # Región S3
     conn.execute(f"SET s3_region='{region}';")
 
-    # Credenciales: intentar múltiples configuraciones para DuckDB 1.4+
-    # 1. Intentar credential_chain (IMDS en EC2)
-    try:
-        conn.execute("SET s3_use_credential_chain=true;")
-    except Exception:
-        pass
+    # Método 1: Usar env vars si están disponibles
+    # DuckDB busca automáticamente:
+    # - AWS_ACCESS_KEY_ID
+    # - AWS_SECRET_ACCESS_KEY
+    # - AWS_SESSION_TOKEN (opcional, para credenciales temporales)
 
-    # 2. Intentar auto_credentials (DuckDB 1.4+)
-    try:
-        conn.execute("SET auto_credentials=true;")
-    except Exception:
-        pass
+    access_key = os.getenv("AWS_ACCESS_KEY_ID")
+    secret_key = os.getenv("AWS_SECRET_ACCESS_KEY")
+    session_token = os.getenv("AWS_SESSION_TOKEN")
 
-    # 3. DuckDB buscará env vars automáticamente (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+    if access_key and secret_key:
+        # Pasar credenciales explícitamente a DuckDB
+        conn.execute(f"SET s3_access_key_id='{access_key}';")
+        conn.execute(f"SET s3_secret_access_key='{secret_key}';")
+
+        if session_token:
+            conn.execute(f"SET s3_session_token='{session_token}';")
+
+        print("[DEBUG] Usando credenciales desde env vars")
+
+    else:
+        # Método 2: Intentar credential_chain (IMDS en EC2)
+        try:
+            conn.execute("SET s3_use_credential_chain=true;")
+            print("[DEBUG] Usando credential_chain (IMDS)")
+        except Exception as e:
+            print(f"[DEBUG] credential_chain no disponible: {e}")
+            pass
 
     return conn
 
 
-def _build_partition_filter(lookback_days: int) -> tuple[str, date]:
+def _build_partition_filter(lookback_days: int):
     """
     Calcula filtro de partición hive para pushdown.
 
@@ -68,11 +83,11 @@ def _build_partition_filter(lookback_days: int) -> tuple[str, date]:
 
 
 def scan_messages(
-    phones: list[str],
+    phones,
     lookback_days: int = 365,
     bucket: str = "s3://inalambria-db-sms/imp3",
     region: str = "us-east-2",
-) -> pd.DataFrame:
+):
     """
     Consulta S3 parquets via DuckDB, retorna DataFrame filtrado.
 
@@ -129,12 +144,12 @@ def scan_messages(
 
 
 def scan_messages_batch(
-    phones: list[str],
+    phones,
     batch_size: int = 100,
     lookback_days: int = 365,
     bucket: str = "s3://inalambria-db-sms/imp3",
     region: str = "us-east-2",
-) -> dict[str, pd.DataFrame]:
+):
     """
     Consulta múltiples teléfonos en lotes, retorna dict {phone: DataFrame}.
 
