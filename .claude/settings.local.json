@@ -10,7 +10,10 @@
       "Bash(git add *)",
       "Bash(git commit -m ' *)",
       "Bash(python -m pytest tests/test_sql_template_store.py -v)",
-      "Bash(python -m pytest tests/test_rule_classifier.py tests/test_template_extractor_new_tokens.py tests/test_sql_template_store.py -v --tb=short)"
+      "Bash(python -m pytest tests/test_rule_classifier.py tests/test_template_extractor_new_tokens.py tests/test_sql_template_store.py -v --tb=short)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pip install *)"
     ]
   }
 }
