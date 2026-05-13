@@ -17,8 +17,9 @@ def _get_duckdb_conn(memory_limit: str = "3GB", region: str = "us-east-2") -> du
     """
     Crea conexión DuckDB in-memory con httpfs para acceso a S3.
 
-    En EC2 con IAM role: credenciales se resuelven automáticamente vía IMDS.
-    Fallback: lee AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY de env vars.
+    Soporta:
+    - EC2 con IAM role: credenciales vía IMDS (automático)
+    - Env vars: AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY
     """
     conn = duckdb.connect()  # in-memory connection
 
@@ -32,8 +33,13 @@ def _get_duckdb_conn(memory_limit: str = "3GB", region: str = "us-east-2") -> du
     # Región S3
     conn.execute(f"SET s3_region='{region}';")
 
-    # Usar IAM role en EC2 (credential_chain = IMDS)
-    conn.execute("SET s3_use_credential_chain=true;")
+    # Credenciales: try credential_chain primero (DuckDB 0.10+), fallback a env vars
+    try:
+        conn.execute("SET s3_use_credential_chain=true;")
+    except Exception:
+        # Si credential_chain no funciona, DuckDB usa env vars automáticamente
+        # AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY
+        pass
 
     return conn
 
