@@ -33,13 +33,20 @@ def _get_duckdb_conn(memory_limit: str = "3GB", region: str = "us-east-2") -> du
     # Región S3
     conn.execute(f"SET s3_region='{region}';")
 
-    # Credenciales: try credential_chain primero (DuckDB 0.10+), fallback a env vars
+    # Credenciales: intentar múltiples configuraciones para DuckDB 1.4+
+    # 1. Intentar credential_chain (IMDS en EC2)
     try:
         conn.execute("SET s3_use_credential_chain=true;")
     except Exception:
-        # Si credential_chain no funciona, DuckDB usa env vars automáticamente
-        # AWS_ACCESS_KEY_ID y AWS_SECRET_ACCESS_KEY
         pass
+
+    # 2. Intentar auto_credentials (DuckDB 1.4+)
+    try:
+        conn.execute("SET auto_credentials=true;")
+    except Exception:
+        pass
+
+    # 3. DuckDB buscará env vars automáticamente (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
 
     return conn
 
